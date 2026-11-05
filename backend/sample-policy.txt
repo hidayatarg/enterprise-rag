@@ -1,0 +1,13 @@
+Payment Refund Policy
+
+Customers may request refunds within 30 days
+of the original payment date.
+
+Refund requests require a valid transaction ID.
+
+Refunds above $500 require manager approval.
+
+Approved refunds are processed within 5 business days.
+
+Duplicate refund requests must be reviewed before
+another refund is initiated.

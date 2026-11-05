@@ -3,8 +3,9 @@ import os
 from collections.abc import Generator
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
+from pgvector.psycopg import register_vector
 
 load_dotenv()
 
@@ -16,6 +17,12 @@ engine = create_engine(
     pool_size=5,        # The number of connections to keep in the pool
     max_overflow=10,    # The number of connections to allow in overflow, that is, connections that can be opened above and beyond the pool_size
 )
+
+# Register the pgvector extension for the connection
+@event.listens_for(engine, "connect")
+def register_pgvector(dbapi_connection, connection_record):
+    register_vector(dbapi_connection)
+
 
 SessionLocal = sessionmaker(
     bind=engine,

@@ -1,13 +1,20 @@
 
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, File, UploadFile
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 import httpx
 import ollama
+
+from pathlib import Path
+from uuid import UUID
+import pymupdf
+
+from app.document_processor import process_document
+from app.ingestion_service import ingest_document
 
 from app.ai_service import AIService, get_ai_service
 
@@ -149,3 +156,100 @@ def embed_text(request: EmbeddingRequest, ai: AI):
             status_code=503,
             detail="Embedding service unavailable",
         )
+
+
+MAX_FILE_SIZE = 5 * 1024 * 1024
+MAX_CHUNKS = 100
+
+
+class UploadResponse(BaseModel):
+    document_id: UUID
+    filename: str
+    chunks_created: int
+    status: str
+
+
+@app.post("/api/v1/documents/upload", response_model=UploadResponse, status_code=201)
+def upload_document(
+    db: DbSession,
+    ai: AI,
+    file: UploadFile = File(...),
+):
+    filename = Path(file.filename or "").name
+
+    extension = Path(filename).suffix.lower()
+
+    if extension not in {".pdf", ".txt"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF and TXT files are supported",
+        )
+
+    data = file.file.read(MAX_FILE_SIZE + 1)
+
+    if len(data) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="File exceeds 5 MB limit",
+        )
+
+    if not data:
+        raise HTTPException(
+            status_code=400,
+            detail="Empty file",
+        )
+
+    try:
+        chunks = process_document(data, filename)
+    except (ValueError, UnicodeDecodeError, pymupdf.FileDataError):
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to extract document text",
+        )
+
+    if not chunks:
+        raise HTTPException(
+            status_code=400,
+            detail="No extractable text found",
+        )
+
+    if len(chunks) > MAX_CHUNKS:
+        raise HTTPException(
+            status_code=413,
+            detail="Document exceeds chunk limit",
+        )
+
+    try:
+        document_id, count = ingest_document(
+            db=db,
+            ai=ai,
+            filename=filename,
+            content_type=(
+                "application/pdf"
+                if extension == ".pdf"
+                else "text/plain"
+            ),
+            chunks=chunks,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        )
+    except (ollama.ResponseError, httpx.HTTPError, OSError):
+        raise HTTPException(
+            status_code=503,
+            detail="Embedding service unavailable",
+        )
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=503,
+            detail="Database unavailable",
+        )
+
+    return UploadResponse(
+        document_id=document_id,
+        filename=filename,
+        chunks_created=count,
+        status="indexed",
+    )

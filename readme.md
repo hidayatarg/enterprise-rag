@@ -8,3 +8,5 @@ SQLAlchemy handles sessions, connections, pooling, transaction management, and o
 
 
 RAG requires document ingestion, embeddings, vector retrieval, and an LLM.
+
+![alt text](img/image.png)
