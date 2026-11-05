@@ -10,3 +10,8 @@ Synchronize dependencies
 ```bash
 uv sync
 ```
+
+Run tests
+```bash
+uv run python -m pytest tests/ -v
+```
