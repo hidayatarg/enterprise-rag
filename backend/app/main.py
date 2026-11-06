@@ -19,6 +19,7 @@ from app.ai_service import AIService, get_ai_service
 
 from app.database import get_db
 from app.retrieval_service import search_chunks
+from app.rag_service import answer_document_question
 
 app = FastAPI(
     title="Enterprise RAG API",
@@ -262,7 +263,7 @@ class SearchRequest(BaseModel):
     )
     top_k: int = Field(default=5, ge=1, le=20)
 
-
+# Retrieve matching document chunks
 @app.post("/api/v1/documents/search")
 def search_document(request: SearchRequest, db: DbSession, ai: AI):
     try:
@@ -310,3 +311,39 @@ def search_document(request: SearchRequest, db: DbSession, ai: AI):
             detail="Invalid embedding response",
         )
 
+# Retrieve chunks and generate an answer with Llama
+@app.post("/api/v1/documents/ask")
+def ask_document(request: SearchRequest, db: DbSession, ai: AI):
+    try:
+        result = answer_document_question(
+            db=db,
+            ai=ai,
+            document_id=request.document_id,
+            question=request.question,
+            top_k=request.top_k,
+        )
+
+        return {
+            "question": request.question,
+            "answer": result.answer,
+            "context_found": result.context_found,
+            "sources": result.sources,
+        }
+
+    except (ollama.ResponseError, httpx.HTTPError, OSError):
+        raise HTTPException(
+            status_code=503,
+            detail="AI service unavailable",
+        )
+
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=503,
+            detail="Database unavailable",
+        )
+
+    except (ValueError, IndexError):
+        raise HTTPException(
+            status_code=502,
+            detail="Invalid retrieval or model response",
+        )

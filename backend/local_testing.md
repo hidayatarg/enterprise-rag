@@ -1,3 +1,7 @@
+`Sample-policy.txt` will be used to test the RAG system. It contains a sample policy document that can be used to test the retrieval and question-answering capabilities of the system.
+
+
+
 Start FastAPI
 
 ```bash

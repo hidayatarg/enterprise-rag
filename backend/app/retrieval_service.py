@@ -1,4 +1,5 @@
 # Semantic Search
+# Responsible for searching PostgreSQL database for document chunks that are semantically similar to a given query vector.
 
 from dataclasses import dataclass
 from uuid import UUID
