@@ -1,4 +1,3 @@
-
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, File, UploadFile
@@ -18,8 +17,8 @@ from app.ingestion_service import ingest_document
 
 from app.ai_service import AIService, get_ai_service
 
-
 from app.database import get_db
+from app.retrieval_service import search_chunks
 
 app = FastAPI(
     title="Enterprise RAG API",
@@ -253,3 +252,61 @@ def upload_document(
         chunks_created=count,
         status="indexed",
     )
+
+
+class SearchRequest(BaseModel):
+    document_id: UUID
+    question: str = Field(
+        min_length=1,
+        max_length=4000,
+    )
+    top_k: int = Field(default=5, ge=1, le=20)
+
+
+@app.post("/api/v1/documents/search")
+def search_document(request: SearchRequest, db: DbSession, ai: AI):
+    try:
+        query_vector = ai.generate_embeddings(
+            [request.question]
+        )[0]
+
+        chunks = search_chunks(
+            db=db,
+            query_vector=query_vector,
+            document_id=request.document_id,
+            limit=request.top_k,
+        )
+
+        return {
+            "question": request.question,
+            "results": [
+                {
+                    "content": chunk.content,
+                    "filename": chunk.filename,
+                    "page_number": chunk.page_number,
+                    "chunk_index": chunk.chunk_index,
+                    "distance": chunk.distance,
+                    "similarity": chunk.similarity,
+                }
+                for chunk in chunks
+            ],
+        }
+
+    except (ollama.ResponseError, httpx.HTTPError, OSError):
+        raise HTTPException(
+            status_code=503,
+            detail="Embedding service unavailable",
+        )
+
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=503,
+            detail="Database unavailable",
+        )
+
+    except (ValueError, IndexError):
+        raise HTTPException(
+            status_code=502,
+            detail="Invalid embedding response",
+        )
+
