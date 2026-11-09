@@ -26,6 +26,7 @@ def search_chunks(
     query_vector: list[float],
     document_id: UUID,
     limit: int = 5,
+    min_similarity: float = 0.45,
 ) -> list[RetrievedChunk]:
 
     if len(query_vector) != 768:
@@ -35,6 +36,11 @@ def search_chunks(
 
     if not 1 <= limit <= 20:
         raise ValueError("limit must be between 1 and 20")
+
+    if not -1.0 <= min_similarity <= 1.0:
+        raise ValueError("Invalid similarity threshold")
+
+    max_distance = 1.0 - min_similarity
 
     # Pgvector cosine distance
     distance = (
@@ -57,6 +63,9 @@ def search_chunks(
             DocumentChunk.document_id == document_id
         ) # Restricts search to one uploaded document 
           # In an enterprise application, we'd also verify the user's access to the document.
+        .where(
+            distance <= max_distance # Filters out chunks that are too dissimilar to the query vector
+        )
         .order_by(distance)
         .limit(limit)
     )
