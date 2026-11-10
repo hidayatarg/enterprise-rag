@@ -1,0 +1,82 @@
+
+{
+  "dataset_name": "refund_policy_v1",
+  "description": "Evaluation questions for the synthetic payment refund policy.",
+  "document_filename": "sample-policy.txt",
+  "cases": [
+    {
+      "id": "refund_001",
+      "question": "How long does it take to process approved refunds?",
+      "answerable": true,
+      "expected_answer": "5 business days",
+      "expected_evidence": [
+        "Approved refunds are processed within 5 business days."
+      ],
+      "category": "direct_fact"
+    },
+    {
+      "id": "refund_002",
+      "question": "When can customers request a refund?",
+      "answerable": true,
+      "expected_answer": "Within 30 days of the original payment date.",
+      "expected_evidence": [
+        "Customers may request refunds within 30 days of the original payment date."
+      ],
+      "category": "direct_fact"
+    },
+    {
+      "id": "refund_003",
+      "question": "Do refunds above $500 require manager approval?",
+      "answerable": true,
+      "expected_answer": "Yes, manager approval is required.",
+      "expected_evidence": [
+        "Refunds above $500 require manager approval."
+      ],
+      "category": "direct_fact"
+    },
+    {
+      "id": "refund_004",
+      "question": "Does a $300 refund require manager approval under the stated threshold?",
+      "answerable": true,
+      "expected_answer": "The above-$500 rule does not require manager approval for a $300 refund.",
+      "expected_evidence": [
+        "Refunds above $500 require manager approval."
+      ],
+      "category": "policy_reasoning"
+    },
+    {
+      "id": "refund_005",
+      "question": "What information is required for a refund request?",
+      "answerable": true,
+      "expected_answer": "A valid transaction ID.",
+      "expected_evidence": [
+        "Refund requests require a valid transaction ID."
+      ],
+      "category": "direct_fact"
+    },
+    {
+      "id": "refund_006",
+      "question": "What is the CEO's annual salary?",
+      "answerable": false,
+      "expected_answer": null,
+      "expected_evidence": [],
+      "category": "unanswerable"
+    },
+    {
+      "id": "refund_007",
+      "question": "What is the company's headquarters address?",
+      "answerable": false,
+      "expected_answer": null,
+      "expected_evidence": [],
+      "category": "unanswerable"
+    },
+    {
+      "id": "refund_008",
+      "question": "Which bank processes the refunds?",
+      "answerable": false,
+      "expected_answer": null,
+      "expected_evidence": [],
+      "category": "unanswerable"
+    }
+  ]
+}
