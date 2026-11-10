@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, File, UploadFile
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 import httpx
 import ollama
 
@@ -342,7 +342,7 @@ def ask_document(request: SearchRequest, db: DbSession, ai: AI):
             detail="Database unavailable",
         )
 
-    except (ValueError, IndexError):
+    except (ValueError, IndexError, ValidationError):
         raise HTTPException(
             status_code=502,
             detail="Invalid retrieval or model response",
