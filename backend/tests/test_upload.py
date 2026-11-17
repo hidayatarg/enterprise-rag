@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from app.ai_service import get_ai_service
+from app.services.ai_service import get_ai_service
 from app.database import get_db
 from app.main import app
 

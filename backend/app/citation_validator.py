@@ -1,7 +1,7 @@
 import re
 
-from app.rag_schemas import GroundedAnswer
-from app.retrieval_service import RetrievedChunk
+from app.schemas.rag_schemas import GroundedAnswer
+from app.services.retrieval_service import RetrievedChunk
 
 
 def normalize_text(value: str) -> str:

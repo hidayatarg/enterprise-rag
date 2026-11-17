@@ -1,6 +1,6 @@
 # AIService is responsible for communicating with LLM (Ollama)
 from ollama import Client
-from app.rag_schemas import GroundedAnswer
+from app.schemas.rag_schemas import GroundedAnswer
 
 class AIService:
     def __init__(

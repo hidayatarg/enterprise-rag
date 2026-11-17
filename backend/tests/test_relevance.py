@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from sqlalchemy.dialects import postgresql
 
-from app.retrieval_service import search_chunks
+from app.services.retrieval_service import search_chunks
 
 
 def test_query_contains_relevance_filter():

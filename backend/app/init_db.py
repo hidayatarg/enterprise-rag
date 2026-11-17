@@ -1,7 +1,7 @@
 from sqlalchemy import text
 
 from app.database import engine
-from app.models import Base
+from app.models.models import Base
 
 
 def initialize_database():

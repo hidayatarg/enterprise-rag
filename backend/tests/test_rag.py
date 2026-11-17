@@ -1,12 +1,12 @@
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-from app.rag_schemas import (
+from app.schemas.rag_schemas import (
     EvidenceCitation,
     GroundedAnswer,
 )
-from app.rag_service import answer_document_question
-from app.retrieval_service import RetrievedChunk
+from app.services.rag_service import answer_document_question
+from app.services.retrieval_service import RetrievedChunk
 
 
 POLICY = "Refunds above $500 require manager approval."
@@ -33,7 +33,7 @@ def run_rag(chunks, generated=None):
     ai.generate_grounded_answer.return_value = generated
 
     with patch(
-        "app.rag_service.search_chunks",
+        "app.services.rag_service.search_chunks",
         return_value=chunks,
     ):
         result = answer_document_question(

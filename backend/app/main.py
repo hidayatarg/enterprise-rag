@@ -13,13 +13,13 @@ from uuid import UUID
 import pymupdf
 
 from app.document_processor import process_document
-from app.ingestion_service import ingest_document
+from app.services.ingestion_service import ingest_document
 
-from app.ai_service import AIService, get_ai_service
+from app.services.ai_service import AIService, get_ai_service
 
 from app.database import get_db
-from app.retrieval_service import search_chunks
-from app.rag_service import answer_document_question
+from app.services.retrieval_service import search_chunks
+from app.services.rag_service import answer_document_question
 
 app = FastAPI(
     title="Enterprise RAG API",

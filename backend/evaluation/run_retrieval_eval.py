@@ -26,8 +26,8 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
-from app.ai_service import AIService
-from app.retrieval_service import search_chunks
+from app.services.ai_service import AIService
+from app.services.retrieval_service import search_chunks
 
 from evaluation.retrieval_metrics import (
     hit_at_k,

@@ -2,7 +2,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.rag_schemas import (
+from app.schemas.rag_schemas import (
     EvidenceCitation,
     GroundedAnswer,
 )

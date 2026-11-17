@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 import pytest
 
-from app.retrieval_service import search_chunks
+from app.services.retrieval_service import search_chunks
 
 
 def test_search_returns_ranked_chunks():

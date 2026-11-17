@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from app.models import Document, DocumentChunk
+from app.models.models import Document, DocumentChunk
 
 
 @dataclass(frozen=True) # Data transfer object containing the retrieved content and its source information

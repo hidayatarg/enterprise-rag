@@ -2,9 +2,9 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.ai_service import AIService
+from app.services.ai_service import AIService
 from app.document_processor import TextChunk
-from app.models import Document, DocumentChunk
+from app.models.models import Document, DocumentChunk
 
 
 EMBEDDING_DIMENSIONS = 768

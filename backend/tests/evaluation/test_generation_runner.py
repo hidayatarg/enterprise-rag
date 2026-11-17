@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from evaluation.run_generation_eval import classify_result, evaluate_case, evidence_for_sources
-from app.rag_service import ABSTAIN_MESSAGE
+from app.services.rag_service import ABSTAIN_MESSAGE
 
 
 def test_abstention_even_if_context_was_retrieved():

@@ -52,7 +52,7 @@ def evaluate_case(case: dict, *, document_id: UUID, db, ai,
                   rag_function=None) -> dict:
     """Execute one live end-to-end RAG request. Exceptions bubble up to runner."""
     if rag_function is None:
-        from app.rag_service import answer_document_question
+        from app.services.rag_service import answer_document_question
         rag_function = answer_document_question
     result = rag_function(db=db, ai=ai, document_id=document_id,
                           question=case["question"], top_k=top_k)
@@ -84,10 +84,10 @@ def run(*, document_id: UUID, dataset_path: Path, output_dir: Path,
     from dotenv import load_dotenv
     load_dotenv(BACKEND_DIR / ".env")
     from sqlalchemy import select
-    from app.ai_service import AIService
+    from app.services.ai_service import AIService
     from app.database import SessionLocal
-    from app.models import Document, DocumentChunk
-    from app.rag_service import ABSTAIN_MESSAGE, MIN_SIMILARITY
+    from app.models.models import Document, DocumentChunk
+    from app.services.rag_service import ABSTAIN_MESSAGE, MIN_SIMILARITY
 
     dataset = json.loads(dataset_path.read_text(encoding="utf-8"))
     if not dataset["cases"]:

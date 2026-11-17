@@ -1,7 +1,7 @@
 
 from math import sqrt
 
-from app.ai_service import AIService
+from app.services.ai_service import AIService
 
 
 def cosine_similarity(

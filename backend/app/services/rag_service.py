@@ -21,8 +21,8 @@ import logging
 from dataclasses import dataclass
 from uuid import UUID
 from sqlalchemy.orm import Session
-from app.ai_service import AIService
-from app.retrieval_service import RetrievedChunk, search_chunks
+from app.services.ai_service import AIService
+from app.services.retrieval_service import RetrievedChunk, search_chunks
 from app.citation_validator import validate_citations
 from app.security import contains_prompt_injection
 

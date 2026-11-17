@@ -4,8 +4,8 @@ from uuid import uuid4
 import pytest
 
 from app.document_processor import TextChunk
-from app.ingestion_service import ingest_document
-from app.models import Document, DocumentChunk
+from app.services.ingestion_service import ingest_document
+from app.models.models import Document, DocumentChunk
 
 
 def test_ingestion_saves_document_and_vector():

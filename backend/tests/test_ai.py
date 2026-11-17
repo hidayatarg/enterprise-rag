@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from ollama import ResponseError
 
-from app.ai_service import get_ai_service
+from app.services.ai_service import get_ai_service
 from app.main import app
 
 

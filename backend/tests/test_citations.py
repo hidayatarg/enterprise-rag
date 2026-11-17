@@ -20,11 +20,11 @@ import pytest
 from pydantic import ValidationError
 
 from app.citation_validator import validate_citations
-from app.rag_schemas import (
+from app.schemas.rag_schemas import (
     EvidenceCitation,
     GroundedAnswer,
 )
-from app.retrieval_service import RetrievedChunk
+from app.services.retrieval_service import RetrievedChunk
 
 
 POLICY = "Refunds above $500 require manager approval."
