@@ -2,7 +2,7 @@
 
 **FastAPI · PostgreSQL/pgvector · Ollama · Llama 3.2 · EmbeddingGemma · Python · uv**
 
-> **Status:** Working local RAG backend through **Part 5 (retrieval, grounded generation, citation validation, initial hardening)**. **Part 6 (quantitative evaluation) is planned next.** React + TypeScript is the planned frontend, **not an implemented UI in this release**.
+> **Status:** Working local RAG backend through **Part 5 (retrieval, grounded generation, citation validation, initial hardening)**. **Part 6 evaluation tooling is implemented; live generation scores are computed locally.** React + TypeScript is the planned frontend, **not an implemented UI in this release**.
 
 >
 
@@ -26,7 +26,7 @@ Upload PDF or TXT documents, extract and chunk their text, index embeddings in P
 
 - [Part 5 — Retrieval, grounded answers and safeguards](#part-5--retrieval-grounded-answers-and-safeguards)
 
-- [Part 6 — Evaluation (next)](#part-6--evaluation-next)
+- [Part 6 — Evaluation Engineering](#part-6--evaluation-engineering)
 
 - [Run locally](#run-locally)
 
@@ -50,7 +50,7 @@ Upload PDF or TXT documents, extract and chunk their text, index embeddings in P
 | Document-scoped semantic search | Implemented | Filters by document UUID; experimental similarity threshold |
 | Grounded Q&A | Implemented | Structured response, cited source IDs and exact quote checks |
 | Basic prompt-injection screening | Implemented, limited | Known-pattern detection; not a security guarantee |
-| Retrieval/answer evaluation metrics | **Part 6 — next** | Golden dataset, Recall@K, MRR, abstention, answer quality |
+| Retrieval/answer evaluation metrics | **Part 6 — tooling available** | Golden dataset, Recall@K, MRR, abstention, answer quality |
 | React + TypeScript UI | Planned | Backend currently exercised through Swagger/curl |
 | Authentication / tenant authorization | **Not implemented** | Do not expose this API publicly with sensitive data |
 
@@ -222,30 +222,37 @@ Example of why **citation integrity ≠ answer faithfulness**: the source says *
 
 ---
 
-## Part 6 — Evaluation (next)
+## Part 6 — Evaluation Engineering
 
-**Planned, not yet claimed as implemented:** move from ad-hoc examples to reproducible quality measurements.
+**Implemented evaluation tooling; live generation scores are produced only when you run the evaluator locally.**
+
+The evaluation suite covers a synthetic golden dataset, Hit@K/Recall@K/MRR retrieval metrics, real PostgreSQL retrieval checks, Llama 3.2 answerability decisions, an optional Llama-based semantic correctness and faithfulness judge, and timestamped JSON reports with baseline regression comparisons.
 
 ```mermaid
 flowchart TD
-    A["1. Prepare Golden Question Dataset"]
-    B["2. Run Retrieval Evaluation"]
-    C["3. Run Answer Evaluation"]
-    D["4. Calculate Recall at K and MRR"]
-    E["5. Measure Answer Correctness and Abstention"]
-    F["6. Validate Citations and Faithfulness"]
-    G["7. Generate Evaluation Report"]
-    A --> B
-    A --> C
-    B --> D
-    C --> E
-    C --> F
-    D --> G
+    A["Golden evaluation questions"] --> B["Vector retrieval evaluation"]
+    A --> C["Real RAG and Llama evaluation"]
+    B --> D["Hit, Recall and MRR"]
+    C --> E["Answer and abstention metrics"]
+    C --> F["Optional correctness and faithfulness judge"]
+    D --> G["Versioned JSON reports"]
     E --> G
     F --> G
+    G --> H["Baseline comparison"]
 ```
 
-Planned deliverables: labeled questions (positive, negative, numeric policy reasoning, adversarial), Recall@K and mean reciprocal rank, citation coverage and invalid-citation rate, abstention accuracy, and grounded-claim review. Compare a baseline against threshold filtering and other retrieval configurations. Publish **measured** results and failure examples; don't infer accuracy from a handful of passing prompts.
+From `backend/`:
+
+```bash
+uv run pytest tests/evaluation/ -v
+uv run python -m evaluation.run_retrieval_eval --document-id YOUR_DOCUMENT_UUID --k 5
+uv run python -m evaluation.run_generation_eval --document-id YOUR_DOCUMENT_UUID --skip-judge
+uv run python -m evaluation.run_generation_eval --document-id YOUR_DOCUMENT_UUID
+```
+
+The last command also asks Llama to evaluate its own accepted answers. **Judge verdicts are provisional**, not independent ground truth; cite integrity alone does not prove semantic faithfulness. The current single-chunk synthetic policy cannot substantiate production-level accuracy.
+
+See the detailed [Part 6 Evaluation Guide](docs/part-6-evaluation.md) for sequence diagrams, metric definitions, commands, report comparisons, and limitations.
 
 ## Run locally
 
@@ -413,7 +420,7 @@ The test suite covers FastAPI behavior, document chunking, ingestion flow, vecto
 | **Part 3** | Ollama, Llama and embeddings | Implemented |
 | **Part 4** | Ingestion, PDF/TXT, chunking and persistence | Implemented |
 | **Part 5** | Vector retrieval, grounded answer, citations and hardening | Implemented; limitations documented |
-| **Part 6** | Golden datasets, Recall@K, MRR, faithfulness and regression evaluation | **Next** |
+| **Part 6** | Golden datasets, Recall@K, MRR, faithfulness and regression evaluation | Evaluation tooling implemented; live generation run pending |
 | **Part 7** | React + TypeScript document and chat UI | Planned |
 | **Part 8** | Authorization, background processing, observability and deployment | Planned |
 
