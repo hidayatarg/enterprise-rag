@@ -1,5 +1,5 @@
-// TypeScript interfaces provide compile-time checking, not runtime validation. 
-// If FastAPI changes its response shape, TypeScript won't automatically detect 
+// TypeScript interfaces provide compile-time checking, not runtime validation.
+// If FastAPI changes its response shape, TypeScript won't automatically detect
 // that at runtime. We'll add contract validation
 export interface HealthResponse {
   status: string;
@@ -9,6 +9,7 @@ export interface UploadResponse {
   document_id: string;
   filename: string;
   chunks_created: number;
+  status: string;
 }
 
 export interface SearchRequest {

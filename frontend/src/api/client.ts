@@ -12,7 +12,7 @@ export class ApiError extends Error {
 }
 
 type RequestOptions = Omit<RequestInit, "body"> & {
-  body?: unknown;
+  body?: unknown | FormData;
 };
 
 async function parseResponse(response: Response): Promise<unknown> {
@@ -57,6 +57,7 @@ function getErrorMessage(data: unknown, status: number): string {
   return `Request failed with status ${status}`;
 }
 
+
 export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
@@ -65,8 +66,19 @@ export async function apiRequest<T>(
 
   const requestHeaders = new Headers(headers);
 
-  if (body !== undefined && !requestHeaders.has("Content-Type")) {
+  const isFormData = body instanceof FormData;
+
+  if (
+    body !== undefined &&
+    !isFormData &&
+    !requestHeaders.has("Content-Type")
+  ) {
     requestHeaders.set("Content-Type", "application/json");
+  }
+
+  // The browser must set the multipart boundary itself.
+  if (isFormData) {
+    requestHeaders.delete("Content-Type");
   }
 
   let response: Response;
@@ -75,16 +87,27 @@ export async function apiRequest<T>(
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...rest,
       headers: requestHeaders,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body:
+        body === undefined
+          ? undefined
+          : isFormData
+            ? body
+            : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, "Unable to connect to the backend service.");
+    throw new ApiError(
+      0,
+      "Unable to connect to the backend service.",
+    );
   }
 
   const data = await parseResponse(response);
 
   if (!response.ok) {
-    throw new ApiError(response.status, getErrorMessage(data, response.status));
+    throw new ApiError(
+      response.status,
+      getErrorMessage(data, response.status),
+    );
   }
 
   return data as T;
