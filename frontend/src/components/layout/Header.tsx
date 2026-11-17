@@ -1,5 +1,6 @@
 import { Menu, CircleHelp, UserRound } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { BackendStatus } from "../BackendStatus";
 
 type HeaderProps = {
     onMenuClick: () => void;
@@ -35,6 +36,11 @@ export function Header({ onMenuClick }: HeaderProps) {
             </div>
 
             <div className="flex items-center gap-4">
+                {/* Backend connection status */}
+                <div className="hidden sm:block">
+                    <BackendStatus />
+                </div>
+
                 <CircleHelp size={19} aria-hidden="true" className="text-slate-400" />
 
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600">
