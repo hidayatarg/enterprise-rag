@@ -1,4 +1,3 @@
-
 import {
     BrainCircuit,
     LayoutDashboard,
@@ -44,10 +43,7 @@ const navigation = [
     },
 ];
 
-export function Sidebar({
-    isOpen,
-    onClose,
-}: SidebarProps) {
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
     return (
         <>
             {isOpen && (
@@ -79,9 +75,7 @@ export function Sidebar({
                             <h1 className="text-sm font-bold text-slate-900">
                                 Enterprise RAG
                             </h1>
-                            <p className="text-xs text-slate-500">
-                                AI Workspace
-                            </p>
+                            <p className="text-xs text-slate-500">AI Workspace</p>
                         </div>
                     </div>
 
@@ -95,10 +89,7 @@ export function Sidebar({
                     </button>
                 </div>
 
-                <nav
-                    aria-label="Main navigation"
-                    className="space-y-1 p-3"
-                >
+                <nav aria-label="Main navigation" className="space-y-1 p-3">
                     {navigation.map((item) => {
                         const Icon = item.icon;
 
