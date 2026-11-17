@@ -29,3 +29,15 @@ SELECT
 FROM learning_vectors
 ORDER BY embedding <=> '[0.85, 0.15, 0.1]'
 LIMIT 3;
+
+
+-- frontend upload document check from db script
+SELECT
+    d.id,
+    d.filename,
+    COUNT(c.id) AS chunk_count
+FROM documents d
+LEFT JOIN document_chunks c
+    ON c.document_id = d.id
+GROUP BY d.id, d.filename
+ORDER BY d.filename;
