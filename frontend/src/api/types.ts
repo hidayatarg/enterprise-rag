@@ -14,16 +14,22 @@ export interface UploadResponse {
 
 export interface SearchRequest {
   document_id: string;
-  query: string;
+  question: string;
   top_k?: number;
 }
 
 export interface SearchResult {
-  filename: string;
-  page_number: number;
-  chunk_index: number;
   content: string;
+  filename: string;
+  page_number: number | null; // pdf file may contain multiple pages
+  chunk_index: number;
+  distance: number;
   similarity: number;
+}
+
+export interface SearchResponse {
+  question: string;
+  results: SearchResult[];
 }
 
 export interface AskRequest {
