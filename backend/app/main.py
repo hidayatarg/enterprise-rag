@@ -20,6 +20,7 @@ from app.services.ai_service import AIService, get_ai_service
 from app.database import get_db
 from app.services.retrieval_service import search_chunks
 from app.services.rag_service import answer_document_question
+from app.models.responses import DocumentListItem, DocumentListResponse, DocumentDeleteResponse
 
 app = FastAPI(
     title="Enterprise RAG API",
@@ -347,3 +348,95 @@ def ask_document(request: SearchRequest, db: DbSession, ai: AI):
             status_code=502,
             detail="Invalid retrieval or model response",
         )
+
+
+# List documents with their chunk counts
+@app.get("/api/v1/documents", response_model=DocumentListResponse)
+def list_documents(db: DbSession):
+    try:
+        rows = db.execute(
+            text("""
+                SELECT
+                    d.id,
+                    d.filename,
+                    d.content_type,
+                    d.created_at,
+                    COUNT(c.id) AS chunk_count
+                FROM documents d
+                LEFT JOIN document_chunks c
+                    ON c.document_id = d.id
+                GROUP BY
+                    d.id,
+                    d.filename,
+                    d.content_type,
+                    d.created_at
+                ORDER BY
+                    d.created_at DESC,
+                    d.id DESC
+            """)
+        ).mappings().all()
+
+        documents = [
+            DocumentListItem.model_validate(dict(row))
+            for row in rows
+        ]
+
+        return DocumentListResponse(
+            documents=documents,
+            total=len(documents),
+        )
+
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to retrieve documents",
+        ) from exc
+
+
+# Delete a document and its associated chunks
+@app.delete("/api/v1/documents/{document_id}", response_model=DocumentDeleteResponse)
+def delete_document(document_id: UUID, db: DbSession):
+    try:
+        # Delete all indexed chunks belonging to the document.
+        db.execute(
+            text("""
+                DELETE FROM document_chunks
+                WHERE document_id = :document_id
+            """),
+            {"document_id": document_id},
+        )
+
+        # Delete the document itself.
+        result = db.execute(
+            text("""
+                DELETE FROM documents
+                WHERE id = :document_id
+                RETURNING id
+            """),
+            {"document_id": document_id},
+        )
+
+        deleted_id = result.scalar_one_or_none()
+
+        if deleted_id is None:
+            db.rollback()
+
+            raise HTTPException(
+                status_code=404,
+                detail="Document not found",
+            )
+
+        db.commit()
+
+        return DocumentDeleteResponse(
+            document_id=deleted_id,
+            deleted=True,
+        )
+
+    except SQLAlchemyError as exc:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to delete document",
+        ) from exc
