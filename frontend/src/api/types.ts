@@ -46,3 +46,21 @@ export interface AskResponse {
   context_found: boolean;
   sources: CitationSource[];
 }
+
+export interface DocumentListItem {
+  id: string;
+  filename: string;
+  content_type: string;
+  created_at: string;
+  chunk_count: number;
+}
+
+export interface DocumentListResponse {
+  documents: DocumentListItem[];
+  total: number;
+}
+
+export interface DocumentDeleteResponse {
+  document_id: string;
+  deleted: boolean;
+}

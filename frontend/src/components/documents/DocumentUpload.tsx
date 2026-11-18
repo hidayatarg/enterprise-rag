@@ -17,6 +17,10 @@ import type { UploadResponse } from "../../api/types";
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = [".pdf", ".txt"];
 
+type DocumentUploadProps = {
+    onUploadSuccess?: () => void;
+};
+
 function validateFile(file: File): string | null {
     const name = file.name.toLowerCase();
 
@@ -43,7 +47,9 @@ function formatFileSize(bytes: number): string {
     return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
-export function DocumentUpload() {
+export function DocumentUpload({
+    onUploadSuccess,
+}: DocumentUploadProps) {
     const inputRef = useRef<HTMLInputElement>(null);
 
     const [file, setFile] = useState<File | null>(null);
@@ -86,8 +92,14 @@ export function DocumentUpload() {
         try {
             const response = await documentsApi.upload(file);
 
+            // Display the successful upload response.
             setResult(response);
+
+            // Clear the selected file.
             setFile(null);
+
+            // Notify the parent component to refresh the document list.
+            onUploadSuccess?.();
         } catch (err) {
             setError(
                 err instanceof Error
@@ -101,6 +113,7 @@ export function DocumentUpload() {
 
     return (
         <section className="space-y-6">
+            {/* Upload area */}
             <div
                 onDragOver={(event) => {
                     event.preventDefault();
@@ -153,13 +166,14 @@ export function DocumentUpload() {
                 </button>
             </div>
 
+            {/* Selected file */}
             {file && (
                 <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
-                    <div className="flex items-center gap-3">
-                        <FileText className="text-indigo-600" />
+                    <div className="flex min-w-0 items-center gap-3">
+                        <FileText className="shrink-0 text-indigo-600" />
 
-                        <div>
-                            <p className="font-medium text-slate-900">
+                        <div className="min-w-0">
+                            <p className="truncate font-medium text-slate-900">
                                 {file.name}
                             </p>
 
@@ -181,6 +195,7 @@ export function DocumentUpload() {
                 </div>
             )}
 
+            {/* Upload button */}
             {file && (
                 <button
                     type="button"
@@ -205,23 +220,43 @@ export function DocumentUpload() {
                 </button>
             )}
 
+            {/* Error notification */}
             {error && (
                 <div
                     role="alert"
                     className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700"
                 >
-                    <AlertCircle size={20} />
+                    <AlertCircle
+                        size={20}
+                        className="shrink-0"
+                    />
                     <p className="text-sm">{error}</p>
                 </div>
             )}
 
+            {/* Success notification */}
             {result && (
                 <div
                     role="status"
-                    className="rounded-xl border border-emerald-200 bg-emerald-50 p-5"
+                    className="relative rounded-xl border border-emerald-200 bg-emerald-50 p-5"
                 >
-                    <div className="flex items-center gap-2 text-emerald-800">
-                        <CheckCircle2 size={22} />
+                    {/* Close button */}
+                    <button
+                        type="button"
+                        onClick={() => setResult(null)}
+                        aria-label="Dismiss upload success"
+                        title="Close"
+                        className="absolute right-4 top-4 rounded-lg p-1.5 text-emerald-700 transition-colors hover:bg-emerald-100 hover:text-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+                    >
+                        <X size={20} />
+                    </button>
+
+                    <div className="flex items-center gap-2 pr-10 text-emerald-800">
+                        <CheckCircle2
+                            size={22}
+                            className="shrink-0"
+                        />
+
                         <h3 className="font-semibold">
                             Document indexed successfully
                         </h3>
@@ -252,6 +287,15 @@ export function DocumentUpload() {
                             </dt>
                             <dd className="text-slate-900">
                                 {result.chunks_created}
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt className="font-medium text-slate-600">
+                                Status
+                            </dt>
+                            <dd className="text-slate-900">
+                                {result.status}
                             </dd>
                         </div>
                     </dl>
