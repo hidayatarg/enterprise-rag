@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, File, UploadFile
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import ValidationError
 import httpx
 import ollama
 
@@ -20,7 +20,8 @@ from app.services.ai_service import AIService, get_ai_service
 from app.database import get_db
 from app.services.retrieval_service import search_chunks
 from app.services.rag_service import answer_document_question
-from app.models.responses import DocumentListItem, DocumentListResponse, DocumentDeleteResponse
+from app.models.responses import DocumentListItem, DocumentListResponse, DocumentDeleteResponse, ChatResponse, EmbeddingResponse, UploadResponse
+from app.models.requests import ChatRequest, EmbeddingRequest, SearchRequest
 
 app = FastAPI(
     title="Enterprise RAG API",
@@ -94,32 +95,6 @@ def list_vectors(db: DbSession):
             detail="Unable to retrieve vectors",
         )
 
-
-class ChatRequest(BaseModel):
-    question: str = Field(
-        min_length=1,
-        max_length=4000,
-    )
-
-
-class ChatResponse(BaseModel):
-    answer: str
-    model: str
-
-
-class EmbeddingRequest(BaseModel):
-    text: str = Field(
-        min_length=1,
-        max_length=4000,
-    )
-
-
-class EmbeddingResponse(BaseModel):
-    model: str
-    dimensions: int
-    preview: list[float]
-
-
 AI = Annotated[AIService, Depends(get_ai_service)]
 
 @app.post("/api/v1/ai/chat", response_model=ChatResponse)
@@ -161,13 +136,6 @@ def embed_text(request: EmbeddingRequest, ai: AI):
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
 MAX_CHUNKS = 100
-
-
-class UploadResponse(BaseModel):
-    document_id: UUID
-    filename: str
-    chunks_created: int
-    status: str
 
 
 @app.post("/api/v1/documents/upload", response_model=UploadResponse, status_code=201)
@@ -256,14 +224,6 @@ def upload_document(
     )
 
 
-class SearchRequest(BaseModel):
-    document_id: UUID
-    question: str = Field(
-        min_length=1,
-        max_length=4000,
-    )
-    top_k: int = Field(default=5, ge=1, le=20)
-
 # Retrieve matching document chunks
 @app.post("/api/v1/documents/search")
 def search_document(request: SearchRequest, db: DbSession, ai: AI):
@@ -311,6 +271,7 @@ def search_document(request: SearchRequest, db: DbSession, ai: AI):
             status_code=502,
             detail="Invalid embedding response",
         )
+
 
 # Retrieve chunks and generate an answer with Llama
 @app.post("/api/v1/documents/ask")

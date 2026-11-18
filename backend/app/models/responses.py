@@ -18,3 +18,18 @@ class DocumentListResponse(BaseModel):
 class DocumentDeleteResponse(BaseModel):
     document_id: UUID
     deleted: bool
+
+class ChatResponse(BaseModel):
+    answer: str
+    model: str
+
+class EmbeddingResponse(BaseModel):
+    model: str
+    dimensions: int
+    preview: list[float]
+
+class UploadResponse(BaseModel):
+    document_id: UUID
+    filename: str
+    chunks_created: int
+    status: str
