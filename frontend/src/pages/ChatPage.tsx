@@ -37,6 +37,7 @@ export function ChatPage() {
     const [documents, setDocuments] = useState<DocumentListItem[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(true);
     const [documentsError, setDocumentsError] = useState<string | null>(null);
+    const [documentRequest, setDocumentRequest] = useState({ selectedId: "" });
 
     const [documentId, setDocumentId] = useState("");
     const [question, setQuestion] = useState("");
@@ -45,8 +46,6 @@ export function ChatPage() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [asking, setAsking] = useState(false);
     const [chatError, setChatError] = useState<string | null>(null);
-
-    const [refreshKey, setRefreshKey] = useState(0);
 
     const messageIdRef = useRef(0);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -61,18 +60,23 @@ export function ChatPage() {
 
                 if (!active) return;
 
+                const previousId = documentRequest.selectedId;
+                const selectedStillExists = response.documents.some(
+                    (document) => document.id === previousId,
+                );
+                const nextId = selectedStillExists
+                    ? previousId
+                    : response.documents[0]?.id ?? "";
+
                 setDocuments(response.documents);
                 setDocumentsError(null);
+                setDocumentId(nextId);
 
-                setDocumentId((current) => {
-                    const exists = response.documents.some(
-                        (document) => document.id === current,
-                    );
-
-                    return exists
-                        ? current
-                        : response.documents[0]?.id ?? "";
-                });
+                if (nextId !== previousId) {
+                    setMessages([]);
+                    setQuestion("");
+                    setChatError(null);
+                }
             } catch (err) {
                 if (!active) return;
 
@@ -93,7 +97,7 @@ export function ChatPage() {
         return () => {
             active = false;
         };
-    }, [refreshKey]);
+    }, [documentRequest]);
 
     // Scroll to the latest message.
     useEffect(() => {
@@ -108,7 +112,7 @@ export function ChatPage() {
     }
 
     function handleDocumentChange(nextDocumentId: string) {
-        if (asking) return;
+        if (asking || documentsLoading) return;
 
         setDocumentId(nextDocumentId);
         setMessages([]);
@@ -117,10 +121,10 @@ export function ChatPage() {
     }
 
     function handleRefreshDocuments() {
-        if (asking) return;
+        if (asking || documentsLoading) return;
 
         setDocumentsLoading(true);
-        setRefreshKey((current) => current + 1);
+        setDocumentRequest({ selectedId: documentId });
     }
 
     async function handleAsk(event: FormEvent<HTMLFormElement>) {
@@ -128,7 +132,7 @@ export function ChatPage() {
 
         const trimmedQuestion = question.trim();
 
-        if (!documentId || !trimmedQuestion || asking) {
+        if (documentsLoading || !documentId || !trimmedQuestion || asking) {
             return;
         }
 
@@ -150,14 +154,11 @@ export function ChatPage() {
                 top_k: topK,
             });
 
-            const abstained =
-                response.answer.trim() === ABSTENTION_MESSAGE;
-
             const assistantMessage: ChatMessage = {
                 id: nextMessageId(),
                 role: "assistant",
                 content: response.answer,
-                abstained,
+                abstained: response.answer.trim() === ABSTENTION_MESSAGE,
                 sources: response.sources,
             };
 
@@ -166,6 +167,11 @@ export function ChatPage() {
                 assistantMessage,
             ]);
         } catch (err) {
+            // Remove the failed attempt so a retry displays one question bubble.
+            setMessages((current) =>
+                current.filter((message) => message.id !== userMessage.id),
+            );
+
             setChatError(
                 err instanceof Error
                     ? err.message
@@ -419,7 +425,7 @@ export function ChatPage() {
                         }
                         rows={3}
                         maxLength={4000}
-                        disabled={!documentId || asking}
+                        disabled={documentsLoading || !documentId || asking}
                         placeholder="Ask a question about the selected document..."
                         className="w-full resize-y rounded-lg border border-slate-300 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none disabled:bg-slate-50"
                     />
@@ -456,6 +462,7 @@ export function ChatPage() {
                         <button
                             type="submit"
                             disabled={
+                                documentsLoading ||
                                 asking ||
                                 !documentId ||
                                 !question.trim()
