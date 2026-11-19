@@ -41,7 +41,7 @@ export interface AskRequest {
 export interface CitationSource {
   reference: number;
   filename: string;
-  page_number: number;
+  page_number: number | null;
   chunk_index: number;
   similarity: number;
 }

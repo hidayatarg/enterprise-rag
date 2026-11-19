@@ -14,9 +14,11 @@ import {
 
 import { documentsApi } from "../api/documentsApi";
 import { askApi } from "../api/askApi";
+import { SourceCitations } from "../components/chat/SourceCitations";
 
 import type {
     AskResponse,
+    CitationSource,
     DocumentListItem,
 } from "../api/types";
 
@@ -25,6 +27,7 @@ type ChatMessage = {
     role: "user" | "assistant";
     content: string;
     abstained?: boolean;
+    sources?: CitationSource[];
 };
 
 const ABSTENTION_MESSAGE =
@@ -155,6 +158,7 @@ export function ChatPage() {
                 role: "assistant",
                 content: response.answer,
                 abstained,
+                sources: response.sources,
             };
 
             setMessages((current) => [
@@ -343,6 +347,13 @@ export function ChatPage() {
                                 <p className="whitespace-pre-wrap">
                                     {message.content}
                                 </p>
+
+                                {message.role === "assistant" &&
+                                  !message.abstained &&
+                                  message.sources &&
+                                  message.sources.length > 0 && (
+                                      <SourceCitations sources={message.sources} />
+                                  )}
                             </div>
 
                             {message.role === "user" && (
