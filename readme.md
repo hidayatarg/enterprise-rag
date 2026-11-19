@@ -2,7 +2,7 @@
 
 **React · TypeScript · Vite · Tailwind CSS · FastAPI · PostgreSQL/pgvector · Ollama · Llama 3.2 · EmbeddingGemma · Python · uv**
 
-> **Status (through Part 7.6):** Local RAG backend and evaluation tooling implemented. React + TypeScript frontend includes navigation, API health status, document upload, listing/deletion, and semantic search. AI chat UI and citation presentation are planned for Parts 7.7–7.8. Live generation evaluation scores must be measured locally.
+> **Status (Part 7 — frontend integration):** The React app supports document upload and management, semantic search, and document-grounded chat with per-answer source citations. The backend and evaluation tooling run locally with FastAPI, PostgreSQL/pgvector, and Ollama.
 
 > This project is an evolving engineering reference implementation, with ongoing development toward a production-ready, multi-tenant AI document intelligence platform.
 
@@ -22,7 +22,7 @@ Upload PDF or TXT documents, extract and chunk their text, index embeddings in P
 - [Part 4 — Document ingestion](#part-4--document-ingestion)
 - [Part 5 — Retrieval, grounded answers and safeguards](#part-5--retrieval-grounded-answers-and-safeguards)
 - [Part 6 — Evaluation Engineering](#part-6--evaluation-engineering)
-- [Part 7 — React frontend through semantic search](#part-7--react-frontend-through-semantic-search)
+- [Part 7 — React frontend and grounded chat](#part-7--react-frontend-and-grounded-chat)
 - [End-to-end sequence diagrams](#end-to-end-sequence-diagrams)
 - [Run locally](#run-locally)
 - [API reference](#api-reference)
@@ -43,18 +43,18 @@ Upload PDF or TXT documents, extract and chunk their text, index embeddings in P
 | Grounded Q&A | Implemented | Structured response, cited source IDs and exact quote checks |
 | Basic prompt-injection screening | Implemented, limited | Known-pattern detection; not a security guarantee |
 | Retrieval/answer evaluation metrics | **Part 6 — tooling available** | Golden dataset, Recall@K, MRR, abstention, answer quality |
-| React + TypeScript UI | Implemented through Part 7.6 | App shell, health indicator, upload, document list/delete, semantic search; AI chat UI pending |
+| React + TypeScript UI | Implemented | App shell, backend health indicator, document management, semantic search, and grounded chat with citations |
 | Authentication / tenant authorization | **Not implemented** | Do not expose this API publicly with sensitive data |
 
 ## Architecture
 
-**High-level architecture (current implementation through Part 7.6)**
+**High-level architecture**
 
 **Design boundaries:** FastAPI handles HTTP and validation; the ingestion service performs document-to-vector transformation; the retrieval service owns pgvector search; the RAG orchestrator coordinates retrieval, model generation and verification. Ollama serves two different model roles: **EmbeddingGemma** for embedding and **Llama 3.2** for answering.
 
 ```mermaid
 flowchart TB
-    User["User / Browser"] --> UI["React + TypeScript / Vite / Tailwind"]
+    User["User / Browser"] --> UI["React workspace with search and chat"]
     UI --> Client["Typed API client / Vite dev proxy"]
     Client --> API["FastAPI /api/v1 (main.py)"]
     API --> DOC["Document processing / ingestion service"]
@@ -70,7 +70,7 @@ flowchart TB
     MGMT --> DB
 ```
 
-**Frontend scope:** Dashboard/layout, document upload and management, and semantic search are wired to FastAPI. The RAG `/documents/ask` backend exists, but the dedicated React chat interface is a Part 7.7 task. The Vite proxy is a development convenience, not a production ingress design.
+The React frontend calls FastAPI for document management, semantic search, and grounded chat. The Vite proxy forwards these requests during local development.
 
 ### Backend layout
 
@@ -250,7 +250,7 @@ flowchart TD
 From `backend/`:
 
 ```bash
-uv run pytest tests/evaluation/ -v
+uv run python -m pytest tests/evaluation/ -v
 uv run python -m evaluation.run_retrieval_eval --document-id YOUR_DOCUMENT_UUID --k 5
 uv run python -m evaluation.run_generation_eval --document-id YOUR_DOCUMENT_UUID --skip-judge
 uv run python -m evaluation.run_generation_eval --document-id YOUR_DOCUMENT_UUID
@@ -260,7 +260,7 @@ The last command also asks Llama to evaluate its own accepted answers. **Judge v
 
 See the detailed [Part 6 Evaluation Guide](docs/part-6-evaluation.md) for sequence diagrams, metric definitions, commands, report comparisons, and limitations.
 
-## Part 7 — React frontend through semantic search
+## Part 7 — React frontend and grounded chat
 
 **Objective:** provide a usable browser interface over the existing FastAPI RAG backend without replacing the Python services or vector retrieval logic.
 
@@ -271,10 +271,11 @@ See the detailed [Part 6 Evaluation Guide](docs/part-6-evaluation.md) for sequen
 | 7.3 | Typed API client, Vite `/api` proxy, backend health status | Implemented |
 | 7.4 | PDF/TXT upload with validation, progress state and indexing result | Implemented |
 | 7.5 | List indexed documents, show chunk counts, delete, refresh after upload | Implemented |
-| 7.6 | Select document, ask search question, choose `top_k`, inspect ranked chunks | Implemented (verify locally) |
-| 7.7 | Grounded AI chat interface using `/documents/ask` | Next |
-| 7.8 | Source citation display and verification UX | Planned |
-| 7.9–7.10 | Expanded frontend tests, integration and documentation | Planned |
+| 7.6 | Select a document, choose `top_k`, and inspect ranked search results | Implemented |
+| 7.7 | Document-scoped chat using `/documents/ask` | Implemented |
+| 7.8 | Per-answer citations with filename, page, chunk, and similarity | Implemented |
+| 7.9 | ChatPage and citation component tests with mocked APIs | Tests available |
+| 7.10 | Integration guide, sequence diagrams, and smoke checks | Documented |
 
 ### Frontend layout
 
@@ -286,10 +287,12 @@ frontend/
 │   │   ├── types.ts
 │   │   ├── healthApi.ts
 │   │   ├── documentsApi.ts
-│   │   └── searchApi.ts
+│   │   ├── searchApi.ts
+│   │   └── askApi.ts
 │   ├── components/
 │   │   ├── layout/          # AppLayout, Header, Sidebar
 │   │   ├── documents/       # DocumentUpload, DocumentList
+│   │   ├── chat/            # SourceCitations
 │   │   └── BackendStatus.tsx
 │   ├── pages/               # Dashboard, Documents, Search, Chat, Settings
 │   └── App.tsx
@@ -319,6 +322,16 @@ The API client uses `VITE_API_BASE_URL=/api/v1`; Vite proxies `/api` to `http://
 ```
 
 The response contains `question` and `results`. Each result includes `content`, `filename`, `page_number`, `chunk_index`, `distance`, and `similarity`. The UI displays raw similarity values; they are **not calibrated probabilities of correctness**. TXT documents may have no page number. Search retrieves evidence; it does **not** generate a final answer.
+
+### Grounded chat and citations
+
+On **AI Chat** (`/chat`), select an indexed document and submit a question. [`ChatPage.tsx`](frontend/src/pages/ChatPage.tsx) uses [`askApi.ts`](frontend/src/api/askApi.ts) to send `document_id`, `question`, and `top_k` to `POST /api/v1/documents/ask`.
+
+- Each assistant message stores its own sources. [`SourceCitations.tsx`](frontend/src/components/chat/SourceCitations.tsx) displays each reference, filename, page number, chunk index, and retrieval similarity.
+- An abstention displays **Insufficient evidence** with no source panel. An API error restores the question for retry and removes the failed attempt from the transcript.
+- Switching documents starts a new conversation. Refreshing the document list preserves the conversation when the selected document remains available.
+- The transcript lives in page memory. Each request sends one question with a document ID, and the backend answers it independently.
+- The ASK endpoint sends source metadata. The RAG service checks evidence quotes internally.
 
 ## End-to-end sequence diagrams
 
@@ -372,19 +385,19 @@ sequenceDiagram
     UI-->>User: Show ranked evidence and metadata
 ```
 
-### C. Grounded answer backend (UI integration planned for Part 7.7)
+### C. Grounded chat and source citations
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Client as API consumer (future React ChatPage)
+    participant UI as React ChatPage
     participant API as FastAPI
     participant RAG as RAG service
     participant O as Ollama
     participant DB as PostgreSQL pgvector
-    Client->>API: POST /api/v1/documents/ask
+    UI->>API: POST /api/v1/documents/ask
     API->>RAG: Question, document_id, top_k
-    RAG->>O: O question
+    RAG->>O: Embed question with EmbeddingGemma
     O-->>RAG: Query vector
     RAG->>DB: Retrieve document-scoped chunks
     DB-->>RAG: Ranked evidence
@@ -397,7 +410,12 @@ sequenceDiagram
         RAG->>RAG: Validate references and exact quotes
         RAG-->>API: Validated answer or abstention
     end
-    API-->>Client: answer, context_found, sources
+    API-->>UI: Answer, context_found and sources
+    alt Sources returned
+        UI->>UI: Display answer and its citations
+    else Insufficient evidence
+        UI->>UI: Display abstention
+    end
 ```
 
 ### D. Delete a document and its vectors
@@ -527,7 +545,7 @@ Keep the backend running on port 8000. In another terminal, from the repository 
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -537,20 +555,36 @@ In `frontend/.env.development`:
 VITE_API_BASE_URL=/api/v1
 ```
 
-The Vite development server typically prints a local URL such as `http://localhost:5173`; use the actual URL printed by your terminal. The Vite proxy forwards `/api` requests to FastAPI on port 8000. Open **Documents** to upload/manage files, then **Semantic Search** to query indexed chunks.
+The Vite development server typically prints a local URL such as `http://localhost:5173`; use the actual URL printed by your terminal. The Vite proxy forwards `/api` requests to FastAPI on port 8000. Open **Documents** to upload or manage files, **Semantic Search** to retrieve ranked chunks, or **AI Chat** to see grounded answers and sources.
 
-### 7. Run quality checks
+### 7. Verify the browser workflow
+
+Use the sample refund policy from the previous step.
+
+| Action | Expected result |
+|---|---|
+| Upload the policy under **Documents** | Indexing completes and the document appears with its chunk count |
+| Ask about refund processing in **Semantic Search** | The ranked results contain the five-business-day passage |
+| Ask the same question in **AI Chat** | The answer says five business days and its source panel shows the policy filename and chunk metadata |
+| Ask for the CEO's salary in **AI Chat** | The assistant abstains and the response carries no citations |
+| Switch to another indexed document | The previous conversation clears and the next ASK request uses the new document ID |
+| Simulate a failed ASK request and retry | The draft is restored, then retry displays one question bubble and the new answer |
+
+Use the browser's Network tab to compare the ASK request's `document_id` with the selected document and the returned `sources` with the source panel.
+
+### 8. Run quality checks
 
 ```bash
-# Backend (from backend/)
-uv run pytest -q
+# Backend (from backend/ with .env configured)
+uv run python -m pytest -q
+
 # Frontend (from frontend/)
-npx vitest run
+npm exec -- vitest run
 npm run build
 npm run lint
 ```
 
-Tests, build and lint should be run in your local checkout; this README does not claim that the latest changes were executed here.
+Run the automated checks from your checkout. The browser workflow above uses the live local services.
 
 ## API reference
 
@@ -565,9 +599,9 @@ Tests, build and lint should be run in your local checkout; this README does not
 | `GET` | `/api/v1/documents` | List indexed documents and chunk counts |
 | `DELETE` | `/api/v1/documents/{document_id}` | Delete document and indexed chunks |
 | `POST` | `/api/v1/documents/search` | Retrieve ranked document chunks |
-| `POST` | `/api/v1/documents/ask` | Retrieve, generate and validate source citations |
+| `POST` | `/api/v1/documents/ask` | Generate a grounded answer with validated source metadata, or abstain |
 
-`/search` returns retrieval details; `/ask` runs the full grounded-answer pipeline. An abstention may currently use HTTP `200` and `context_found` reports whether retrieval provided candidates, **not** whether the model answered. Status-specific response codes are a future enhancement.
+`/search` returns ranked passages. `/ask` returns `question`, `answer`, `context_found`, and `sources`. An abstention can return HTTP `200` with an empty `sources` array even when `context_found` is true. Similarity scores measure retrieval relevance.
 
 ## Reproducible scenarios
 
@@ -587,17 +621,25 @@ Use the synthetic `sample-policy.txt` above and the document ID returned from up
 
 ## Tests and engineering trade-offs
 
-Run focused and full suites using **uv**:
+Run the backend suites with **uv**:
 
 ```bash
 cd backend
-uv run pytest tests/test_citations.py -v
-uv run pytest tests/test_rag_schemas.py -v
-uv run pytest tests/test_rag.py -v
-uv run pytest tests/ -v
+uv run python -m pytest tests/test_citations.py -v
+uv run python -m pytest tests/test_rag_schemas.py -v
+uv run python -m pytest tests/test_rag.py -v
+uv run python -m pytest tests/ -v
 ```
 
 The test suite covers FastAPI behavior, document chunking, ingestion flow, vector-query construction, model mocking, schema validation, citation integrity and simple injection patterns. Mock-based tests don't prove live retrieval performance or end-to-end answer faithfulness; Part 6 provides reproducible evaluation tooling. The test count is intentionally not hard-coded here: run the suite in your checkout for the current total.
+
+Run the frontend chat and citation suites from `frontend/`:
+
+```bash
+npm exec -- vitest run src/pages/ChatPage.test.tsx src/components/chat/SourceCitations.test.tsx
+```
+
+The chat tests cover document selection, the ASK payload, rendering the answer and its source, and abstention when retrieval found context. The citation tests cover multiple sources, missing page metadata, and empty sources. The API mocks let both suites run with FastAPI and Ollama stopped.
 
 **Design decisions and known limitations:**
 
@@ -622,7 +664,7 @@ The test suite covers FastAPI behavior, document chunking, ingestion flow, vecto
 | **Part 4** | Ingestion, PDF/TXT, chunking and persistence | Implemented |
 | **Part 5** | Vector retrieval, grounded answer, citations and hardening | Implemented; limitations documented |
 | **Part 6** | Golden datasets, Recall@K, MRR, faithfulness and regression evaluation | Evaluation tooling implemented; live generation run pending |
-| **Part 7** | React + TypeScript document and chat UI | Implemented through Part 7.6. Chat and citations are planned for Parts 7.7–7.8. |
+| **Part 7** | React + TypeScript UI, grounded chat, citations, and integration guide | Implemented and documented |
 | **Part 8** | Authorization, background processing, observability and deployment | Planned |
 
 ### Contribution and history
