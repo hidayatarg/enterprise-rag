@@ -48,6 +48,12 @@ class Document(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+    owner_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
 
 
 class DocumentChunk(Base):

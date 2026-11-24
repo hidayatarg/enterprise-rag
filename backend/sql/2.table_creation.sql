@@ -59,3 +59,43 @@ CREATE TABLE IF NOT EXISTS users (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- 7 Add owner_id column to documents table
+BEGIN;
+
+ALTER TABLE documents
+ADD COLUMN IF NOT EXISTS owner_id UUID;
+
+CREATE INDEX IF NOT EXISTS idx_documents_owner_id
+ON documents(owner_id);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_documents_owner'
+          AND conrelid = 'documents'::regclass
+    ) THEN
+        ALTER TABLE documents
+        ADD CONSTRAINT fk_documents_owner
+        FOREIGN KEY (owner_id)
+        REFERENCES users(id)
+        ON DELETE RESTRICT;
+    END IF;
+END $$;
+
+COMMIT;
+
+
+8-- update the owner_id of document
+SELECT id, filename, owner_id
+    FROM documents;
+
+SELECT id, username
+    FROM users;
+
+UPDATE documents
+SET owner_id = 'YOUR_USER_UUID'
+WHERE id = 'YOUR_DOCUMENT_UUID'
+  AND owner_id IS NULL;

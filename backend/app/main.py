@@ -29,6 +29,8 @@ from app.services.jwt_service import JWTService
 from app.models.models import User
 from app.services.auth_dependencies import get_current_user
 
+from app.services.document_authorization import DocumentAuthorizationService
+
 app = FastAPI(
     title="Enterprise RAG API",
     description="Building RAG applications for enterprises with vector databases and LLMs",
@@ -149,6 +151,7 @@ def upload_document(
     db: DbSession,
     ai: AI,
     file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
 ):
     filename = Path(file.filename or "").name
 
@@ -205,22 +208,23 @@ def upload_document(
                 else "text/plain"
             ),
             chunks=chunks,
+            owner_id=current_user.id,
         )
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
             detail=str(exc),
-        )
+        ) from exc
     except (ollama.ResponseError, httpx.HTTPError, OSError):
         raise HTTPException(
             status_code=503,
             detail="Embedding service unavailable",
-        )
+        ) from None
     except SQLAlchemyError:
         raise HTTPException(
             status_code=503,
             detail="Database unavailable",
-        )
+        ) from None
 
     return UploadResponse(
         document_id=document_id,
@@ -232,12 +236,22 @@ def upload_document(
 
 # Retrieve matching document chunks
 @app.post("/api/v1/documents/search")
-def search_document(request: SearchRequest, db: DbSession, ai: AI):
+def search_document(request: SearchRequest, db: DbSession, ai: AI,
+    current_user: User = Depends(get_current_user),
+):
     try:
+        # 1. Verify document ownership before retrieval.
+        DocumentAuthorizationService(db).require_owned_document(
+            document_id=request.document_id,
+            user_id=current_user.id,
+        )
+
+        # 2. Generate question embedding.
         query_vector = ai.generate_embeddings(
             [request.question]
         )[0]
 
+        # 3. Search the authenticated user's document.
         chunks = search_chunks(
             db=db,
             query_vector=query_vector,
@@ -245,6 +259,7 @@ def search_document(request: SearchRequest, db: DbSession, ai: AI):
             limit=request.top_k,
         )
 
+        # 4. Return matching chunks.
         return {
             "question": request.question,
             "results": [
@@ -264,25 +279,34 @@ def search_document(request: SearchRequest, db: DbSession, ai: AI):
         raise HTTPException(
             status_code=503,
             detail="Embedding service unavailable",
-        )
+        ) from None
 
     except SQLAlchemyError:
         raise HTTPException(
             status_code=503,
             detail="Database unavailable",
-        )
+        ) from None
 
     except (ValueError, IndexError):
         raise HTTPException(
             status_code=502,
             detail="Invalid embedding response",
-        )
+        ) from None
 
 
 # Retrieve chunks and generate an answer with Llama
 @app.post("/api/v1/documents/ask")
-def ask_document(request: SearchRequest, db: DbSession, ai: AI):
+def ask_document(request: SearchRequest, db: DbSession, ai: AI,
+    current_user: User = Depends(get_current_user),
+):
     try:
+        # Verify document ownership before retrieval.
+        DocumentAuthorizationService(db).require_owned_document(
+            document_id=request.document_id,
+            user_id=current_user.id,
+        )
+
+        # Run the existing RAG pipeline only after authorization.
         result = answer_document_question(
             db=db,
             ai=ai,
@@ -302,19 +326,19 @@ def ask_document(request: SearchRequest, db: DbSession, ai: AI):
         raise HTTPException(
             status_code=503,
             detail="AI service unavailable",
-        )
+        ) from None
 
     except SQLAlchemyError:
         raise HTTPException(
             status_code=503,
             detail="Database unavailable",
-        )
+        ) from None
 
     except (ValueError, IndexError, ValidationError):
         raise HTTPException(
             status_code=502,
             detail="Invalid retrieval or model response",
-        )
+        ) from None
 
 
 # List documents with their chunk counts
