@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, File, UploadFile
+from fastapi import Depends, FastAPI, HTTPException, File, UploadFile, status
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -22,6 +22,9 @@ from app.services.retrieval_service import search_chunks
 from app.services.rag_service import answer_document_question
 from app.models.responses import DocumentListItem, DocumentListResponse, DocumentDeleteResponse, ChatResponse, EmbeddingResponse, UploadResponse
 from app.models.requests import ChatRequest, EmbeddingRequest, SearchRequest
+
+from app.schemas.auth_schemas import UserRegisterRequest, UserResponse
+from app.services.user_service import UserService, UsernameAlreadyExistsError
 
 app = FastAPI(
     title="Enterprise RAG API",
@@ -401,3 +404,23 @@ def delete_document(document_id: UUID, db: DbSession):
             status_code=503,
             detail="Unable to delete document",
         ) from exc
+
+
+@app.post("/api/v1/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED,
+    tags=["Authentication"],
+)
+def register_user(
+    request: UserRegisterRequest,
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    service = UserService(db)
+
+    try:
+        user = service.register_user(request)
+    except UsernameAlreadyExistsError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username is already registered.",
+        ) from None
+
+    return UserResponse.model_validate(user)
