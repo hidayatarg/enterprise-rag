@@ -26,6 +26,8 @@ from app.models.requests import ChatRequest, EmbeddingRequest, SearchRequest
 from app.schemas.auth_schemas import UserRegisterRequest, UserResponse, TokenResponse, UserLoginRequest
 from app.services.user_service import UserService, UsernameAlreadyExistsError, InvalidCredentialsError
 from app.services.jwt_service import JWTService
+from app.models.models import User
+from app.services.auth_dependencies import get_current_user
 
 app = FastAPI(
     title="Enterprise RAG API",
@@ -460,3 +462,11 @@ def login_user(
         expires_in=jwt_service.expiration_minutes * 60,
         user=UserResponse.model_validate(user),
     )
+
+@app.get("/api/v1/auth/me", response_model=UserResponse,
+    tags=["Authentication"],
+)
+def get_my_profile(
+    current_user: User = Depends(get_current_user),
+) -> UserResponse:
+    return UserResponse.model_validate(current_user)
