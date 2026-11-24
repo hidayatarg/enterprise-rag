@@ -23,8 +23,9 @@ from app.services.rag_service import answer_document_question
 from app.models.responses import DocumentListItem, DocumentListResponse, DocumentDeleteResponse, ChatResponse, EmbeddingResponse, UploadResponse
 from app.models.requests import ChatRequest, EmbeddingRequest, SearchRequest
 
-from app.schemas.auth_schemas import UserRegisterRequest, UserResponse
-from app.services.user_service import UserService, UsernameAlreadyExistsError
+from app.schemas.auth_schemas import UserRegisterRequest, UserResponse, TokenResponse, UserLoginRequest
+from app.services.user_service import UserService, UsernameAlreadyExistsError, InvalidCredentialsError
+from app.services.jwt_service import JWTService
 
 app = FastAPI(
     title="Enterprise RAG API",
@@ -424,3 +425,38 @@ def register_user(
         ) from None
 
     return UserResponse.model_validate(user)
+
+
+@app.post("/api/v1/auth/login", response_model=TokenResponse,
+    tags=["Authentication"],
+)
+def login_user(
+    request: UserLoginRequest,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    service = UserService(db)
+
+    try:
+        user = service.authenticate_user(
+            username=request.username,
+            password=request.password,
+        )
+    except InvalidCredentialsError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password.",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None
+
+    jwt_service = JWTService()
+
+    access_token = jwt_service.create_access_token(
+        user.id
+    )
+
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=jwt_service.expiration_minutes * 60,
+        user=UserResponse.model_validate(user),
+    )

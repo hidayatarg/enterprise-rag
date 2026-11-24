@@ -11,6 +11,9 @@ from app.services.password_service import password_service
 class UsernameAlreadyExistsError(Exception):
     pass
 
+class InvalidCredentialsError(Exception):
+    pass
+
 
 class UserService:
     def __init__(self, db: Session) -> None:
@@ -56,5 +59,27 @@ class UserService:
             ) from None
 
         self.db.refresh(user)
+
+        return user
+
+
+    def authenticate_user(
+        self,
+        username: str,
+        password: str,
+    ) -> User:
+        user = self.get_by_username(username)
+
+        if user is None:
+            raise InvalidCredentialsError("Invalid username or password.")
+
+        if not password_service.verify_password(
+            password,
+            user.password_hash,
+        ):
+            raise InvalidCredentialsError("Invalid username or password.")
+
+        if not user.is_active:
+            raise InvalidCredentialsError("Invalid username or password.")
 
         return user
