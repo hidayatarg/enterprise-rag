@@ -46,3 +46,16 @@ ON document_chunks(document_id);
 CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding
 ON document_chunks
 USING hnsw (embedding vector_cosine_ops);
+
+-- 6. Users authentication table
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), -- Unique identifier for each user
+    username VARCHAR(100) NOT NULL UNIQUE,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    company VARCHAR(200),
+    job_title VARCHAR(150),
+    password_hash TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
